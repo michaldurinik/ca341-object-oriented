@@ -1,5 +1,6 @@
-import tkinter
-from sys import exit
+#!/usr/bin/python3
+import pickle
+from sys import exit as exit_program
 
 
 class Day:
@@ -72,7 +73,6 @@ def parse_day(key):
          "tue": 1,
          "tuesday": 1,
          "3": 2,
-         "w": 2,
          "wed": 2,
          "Wednesday": 2,
          "4": 3,
@@ -95,10 +95,6 @@ def parse_day(key):
         return d[key]
 
 
-#def parse_day(day):
-#    return day_dict(day)
-
-
 def parse_time(time):
     h, m = 0, 0
     if time.find(":"):
@@ -106,7 +102,7 @@ def parse_time(time):
 
 
 def print_day(calendar, d):
-    print(calendar[d - 1])
+    print(calendar[d])
 
 
 def print_week(calendar):
@@ -141,6 +137,9 @@ def add_app(calendar):
 
     calendar.add_appointment(day, start, finish, name)
 
+    with open("data.pkl", "wb") as output_file:
+        pickle.dump(calendar, output_file, pickle.HIGHEST_PROTOCOL)
+
 
 def rem_app(calendar):
     print("Please enter DAY of an appointment:")
@@ -159,15 +158,21 @@ def rem_app(calendar):
         num = input()
         try:
             num = int(num)
-            correct = True
         except ValueError:
             wrong_input()
+
     print("yo")
+
+
+def help_commands(*args):
+    print("Welcome in Calendar program!")
+    print("If you like to see this message gain, enter 'h' or 'help'")
+    print("Press number for day")
 
 
 def function_dict(key, calendar):
     key = key.lower()
-    d = {
+    dict = {
         "w": print_week,
         "week": print_week,
         "d": choose_day,
@@ -179,20 +184,35 @@ def function_dict(key, calendar):
         "remove": rem_app,
         "del": rem_app,
         "delete": rem_app,
+        "h": help_commands,
+        "help": help_commands,
     }
-    if key.lower() == "e":
-        exit()
-    return d[key](calendar)
+
+    if key == "ex" or key == "exit":
+        exit_program()
+
+    if parse_day(key) is not None:
+        print_day(calendar, parse_day(key))
+        return
+
+    return dict[key](calendar)
 
 
 def main():
-    c = Calendar()
+
+    try:
+        with open("data.pkl", "rb") as input_file:
+            cal = pickle.load(input_file)
+    except FileNotFoundError:
+        cal = Calendar()
+
+    help_commands()
 
     while True:
         print("Please input action:")
         user_in = input()
         try:
-            function_dict(user_in, c)
+            function_dict(user_in, cal)
         except KeyError:
             wrong_input()
 
