@@ -46,10 +46,13 @@ class Calendar(Week, Day):
         super().__init__()
         pass
 
-    def add_appointment(self, d, start_time=0, finish_time=0, description="N/A"):
-        if d < 7:
-            self.week[d].schedule.append([len(self.week[d].schedule) + 1, start_time, finish_time, description])
-            print("Appointment has been added successfully")
+    def add_appointment(self, d, description="N/A", start_time=0, finish_time=0):
+        if hrs_to_mins(start_time) < hrs_to_mins(finish_time):
+            print("Error, finish time cannot be lower than start time")
+            return "error"
+
+        self.week[d].schedule.append([len(self.week[d].schedule) + 1, description, start_time, finish_time])
+        print("Appointment has been added successfully")
 
     def remove_appointment(self, d, idx):
         del self.week[d].schedule[idx - 1]
@@ -57,10 +60,6 @@ class Calendar(Week, Day):
 
     def __str__(self):
         return super().__str__()
-
-
-def wrong_input():
-    print("Wrong input format!")
 
 
 def parse_day(key):
@@ -96,9 +95,35 @@ def parse_day(key):
 
 
 def parse_time(time):
-    h, m = 0, 0
     if time.find(":"):
+        if time.count(":") > 1:
+            return None
+
         h, m = time.split(":")
+        try:
+            h, m = int(h), int(m)
+        except ValueError:
+            return None
+
+        if h <= 24 and m <= 59:
+            return [h, m]
+
+    return None
+
+
+def hrs_to_mins(time):
+    h, m = time
+    return h*60 + m
+
+
+def printable_hrs_mins(h, m):
+    h, m = str(h), str(m)
+    if len(h) == 1:
+        h = "0" + h
+    if len(m) == 1:
+        m = "0" + m
+
+    return h + ":" + m
 
 
 def print_day(calendar, d):
@@ -109,33 +134,36 @@ def print_week(calendar):
     print(calendar)
 
 
-def choose_day(calendar):
-    print("Please enter a Day:\nexample: mon, Mon, 1")
-    d = int(input())
-    try:
-        print_day(calendar, d)
-    except:
-        wrong_input()
-        choose_day(calendar)
-
-
 def add_app(calendar):
-    print("Please enter DAY of an appointment:")
+    print("Enter DAY of an appointment:")
     day = parse_day(input())
     if day is None:
         wrong_input()
         add_app(calendar)
 
-    print("Please enter appointment NAME:")
-    name = input()
+    correct = False
+    while not correct:
+        print("Appointment NAME (max.30 characters):")
+        name = input()
+        if len(name) <= 30:
+            correct = True
 
-    print("Start time:")
-    start = input()
+    correct = False
+    while not correct:
+        print("Start time ('HH:MM'):")
+        start = parse_time(input())
+        if start is not None:
+            correct = True
 
-    print("Finish time:")
-    finish = input()
+    correct = False
+    while not correct:
+        print("Finish time ('HH:MM'):")
+        finish = parse_time(input())
+        if finish is not None:
+            correct = True
 
-    calendar.add_appointment(day, start, finish, name)
+    if calendar.add_appointment(day, name, start, finish) is "error":
+        return
 
     with open("data.pkl", "wb") as output_file:
         pickle.dump(calendar, output_file, pickle.HIGHEST_PROTOCOL)
@@ -164,10 +192,23 @@ def rem_app(calendar):
     print("yo")
 
 
+def wrong_input():
+    print("Error wrong input format!")
+
+
+def welcome_message():
+    print("For information about all commands and shortcuts, enter 'h' or 'help'")
+    print("To start, enter 'w' for week schedule, '5' or 'fri' for friday schedule")
+    print("Enter 'add' to add appointment, 'rem' to remove it.")
+
+
 def help_commands(*args):
-    print("Welcome in Calendar program!")
-    print("If you like to see this message gain, enter 'h' or 'help'")
-    print("Press number for day")
+    print("#################################################################")
+    print("Display WEEK schedule: 'w' or 'week'")
+    print("Display DAY schedule, example Monday: '1', 'm', 'mon' or 'Monday'")
+    print("To ADD appointment: 'a', 'add'")
+    print("To REMOVE appointment: 'r', 'rem', 'remove', 'del' or 'delete'")
+    print("#################################################################")
 
 
 def function_dict(key, calendar):
@@ -175,8 +216,6 @@ def function_dict(key, calendar):
     dict = {
         "w": print_week,
         "week": print_week,
-        "d": choose_day,
-        "day": choose_day,
         "a": add_app,
         "add": add_app,
         "r": rem_app,
@@ -206,10 +245,10 @@ def main():
     except FileNotFoundError:
         cal = Calendar()
 
-    help_commands()
+    welcome_message()
 
     while True:
-        print("Please input action:")
+        print("Please enter action:")
         user_in = input()
         try:
             function_dict(user_in, cal)
