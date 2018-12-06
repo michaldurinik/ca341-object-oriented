@@ -192,23 +192,34 @@ def rem_app(calendar):
     print("yo")
 
 
+def box_it(func):
+	def wrapper():
+		print("#########")
+		"#" + func()
+		print("#########")
+	return wrapper
+
 def wrong_input():
     print("Error wrong input format!")
 
 
 def welcome_message():
-    print("For information about all commands and shortcuts, enter 'h' or 'help'")
-    print("To start, enter 'w' for week schedule, '5' or 'fri' for friday schedule")
+    print("|=======================================================================|")
+    print("| For information about all commands and shortcuts, enter 'h' or 'help' |")
+    print("|=======================================================================|")
+    print()
+    print("Enter 'w' for week schedule, '5' or 'fri' for friday schedule")
     print("Enter 'add' to add appointment, 'rem' to remove it.")
-
+    print()
+    
 
 def help_commands(*args):
-    print("#################################################################")
-    print("Display WEEK schedule: 'w' or 'week'")
-    print("Display DAY schedule, example Monday: '1', 'm', 'mon' or 'Monday'")
-    print("To ADD appointment: 'a', 'add'")
-    print("To REMOVE appointment: 'r', 'rem', 'remove', 'del' or 'delete'")
-    print("#################################################################")
+    print("|===================================================================|")
+    print("| Display WEEK schedule: 'w' or 'week'                              |")
+    print("| Display DAY schedule, example Monday: '1', 'm', 'mon' or 'Monday' |")
+    print("| To ADD appointment: 'a', 'add'                                    |")
+    print("| To REMOVE appointment: 'r', 'rem', 'remove', 'del' or 'delete'    |")
+    print("|===================================================================|")
 
 
 def function_dict(key, calendar):
