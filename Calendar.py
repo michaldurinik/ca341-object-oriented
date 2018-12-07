@@ -3,6 +3,14 @@ import pickle
 from sys import exit as exit_program
 
 
+def box_it(func):
+    def wrapper(*args):
+        print("|========================================================================|")
+        func(*args)
+        print("|========================================================================|")
+    return wrapper
+
+
 class Day:
 
     def __init__(self, day="default"):
@@ -16,7 +24,7 @@ class Day:
         return self.schedule
 
     def __str__(self):
-        return "{:<10} {}" .format(self.day, " ".join([str(t) for t in self.get_schedule()]) + "\n")
+        return "{:<10s} {:s}\n" .format(self.day, (" ".join([str(t) for t in self.get_schedule()])))
 
 
 class Week(Day):
@@ -47,7 +55,7 @@ class Calendar(Week, Day):
         pass
 
     def add_appointment(self, d, description="N/A", start_time=0, finish_time=0):
-        if hrs_to_mins(start_time) < hrs_to_mins(finish_time):
+        if hrs_to_mins(start_time) > hrs_to_mins(finish_time):
             print("Error, finish time cannot be lower than start time")
             return "error"
 
@@ -95,7 +103,7 @@ def parse_day(key):
 
 
 def parse_time(time):
-    if time.find(":"):
+    if time.find(":") != -1:
         if time.count(":") > 1:
             return None
 
@@ -107,6 +115,14 @@ def parse_time(time):
 
         if h <= 24 and m <= 59:
             return [h, m]
+
+    try:
+        h = int(time)
+    except ValueError:
+        return None
+
+    if h <= 24:
+        return [h, 0]
 
     return None
 
@@ -154,6 +170,8 @@ def add_app(calendar):
         start = parse_time(input())
         if start is not None:
             correct = True
+        else:
+            wrong_input()
 
     correct = False
     while not correct:
@@ -161,6 +179,8 @@ def add_app(calendar):
         finish = parse_time(input())
         if finish is not None:
             correct = True
+        else:
+            wrong_input()
 
     if calendar.add_appointment(day, name, start, finish) is "error":
         return
@@ -192,15 +212,10 @@ def rem_app(calendar):
     print("yo")
 
 
-def box_it(func):
-	def wrapper():
-		print("#########")
-		"#" + func()
-		print("#########")
-	return wrapper
+
 
 def wrong_input():
-    print("Error wrong input format!")
+    print("[*Error*] wrong input format!")
 
 
 def welcome_message():
