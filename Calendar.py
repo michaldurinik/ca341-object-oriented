@@ -1,21 +1,17 @@
 #!/usr/bin/python3
 import pickle
-from sys import exit as exit_program
-
-
-def box_it(func):
-    def wrapper(*args):
-        print("|========================================================================|")
-        func(*args)
-        print("|========================================================================|")
-    return wrapper
+from sys import exit as exit_program, executable, argv
+from bisect import bisect_right
+import os
+from time import sleep
 
 
 class Day:
 
     def __init__(self, day="default"):
         self.day = day
-        self.schedule = []
+        self.schedule = []      # [[name1, start1, finish1], [name2, start2, finish2]]
+        self.schedule_lst = []  # start followed by finish time for each app (in minutes) [start, finish, start, finish]
 
     def get_day(self):
         return self.day
@@ -24,7 +20,41 @@ class Day:
         return self.schedule
 
     def __str__(self):
-        return "{:<10s} {:s}\n" .format(self.day, (" ".join([str(t) for t in self.get_schedule()])))
+        s =  "|=================================================|\n"
+        s += "|{:<10s}#  {:<20s} {:s}   {:s} |\n".format(self.day, "Name", "Start", "Finish")
+        s += "|=================================================|\n"
+
+        for i, appointment in enumerate(self.schedule):
+            name, start, finish = appointment
+            s += "|{:>11d}. {:<20s} {:s} - {:s}  |\n".format(i+1, name, start, finish)
+        s += "|=================================================|\n"
+        return s
+
+    def __repr__(self):
+        s = "|{:<11}".format(self.day)
+        for num, appointment in enumerate(self.schedule):
+            name, start, finish = appointment
+            short_version = "{} {}-{}".format(name_to_initials(name), start, finish)
+            # only 4 appointments per line
+            if num % 4 == 0 and num != 0:
+                s += "\n|{:<11}".format("")
+
+            s += (short_version + "   ")
+            # after 4 apps add "|"
+            if num % 4 == 3:
+                s = s.rstrip()
+                s += " |"
+
+        # last appointment
+        if len(self.schedule) % 4 != 0:
+            num = 4 - len(self.schedule) % 4
+            s = s.rstrip()
+            s += (num * "                 " + " |")
+
+        if len(self.schedule) == 0:
+            s += "                                                                  |"
+
+        return s + "\n"
 
 
 class Week(Day):
@@ -42,10 +72,10 @@ class Week(Day):
         return self.week[idx]
 
     def __str__(self):
-        s = ""
+        s = "|=============================================================================|\n"
         for d in self.week:
-            s += d.__str__()
-        return s
+            s += d.__repr__()
+        return s + "|=============================================================================|\n"
 
 
 class Calendar(Week, Day):
@@ -55,16 +85,45 @@ class Calendar(Week, Day):
         pass
 
     def add_appointment(self, d, description="N/A", start_time=0, finish_time=0):
-        if hrs_to_mins(start_time) > hrs_to_mins(finish_time):
-            print("Error, finish time cannot be lower than start time")
+        start, finish = hrs_to_min(start_time), hrs_to_min(finish_time)
+        if start > finish:
+            print("Error, finish time cannot be lower than start time, returning...")
             return "error"
 
-        self.week[d].schedule.append([len(self.week[d].schedule) + 1, description, start_time, finish_time])
-        print("Appointment has been added successfully")
+        valid = False
+        idx = bisect_right(self.week[d].schedule_lst, start)
+        if idx % 2 == 0:
+            # start is not between start and finish time of other appointment
+            # and we are not at the end of array
+            if idx == len(self.week[d].schedule_lst):
+                valid = True
+            else:
+                if finish <= self.week[d].schedule_lst[idx]:
+                    valid = True
+
+            if valid:
+                # schedule is half the size of schedule_lst
+                self.week[d].schedule.insert(idx // 2, [description, printable_hrs_min(start_time),
+                                                        printable_hrs_min(finish_time)])
+                self.week[d].schedule_lst.insert(idx, start)
+                self.week[d].schedule_lst.insert(idx + 1, finish)
+                print("Appointment has been added successfully")
+                return
+
+        print("Error, appointments are overlapping")
+        return "error"
 
     def remove_appointment(self, d, idx):
-        del self.week[d].schedule[idx - 1]
-        print("Appointment has been removed successfully")
+        if idx >= len(self.week[d].schedule):
+            print("No such appointment number, returning...")
+            return "error"
+        else:
+            del self.week[d].schedule[idx]
+            del self.week[d].schedule_lst[idx * 2]
+            # elements will shift after deletion
+            del self.week[d].schedule_lst[idx * 2]
+            print("Appointment has been removed successfully")
+            return
 
     def __str__(self):
         return super().__str__()
@@ -127,12 +186,13 @@ def parse_time(time):
     return None
 
 
-def hrs_to_mins(time):
+def hrs_to_min(time):
     h, m = time
     return h*60 + m
 
 
-def printable_hrs_mins(h, m):
+def printable_hrs_min(time):
+    h, m = time
     h, m = str(h), str(m)
     if len(h) == 1:
         h = "0" + h
@@ -140,6 +200,13 @@ def printable_hrs_mins(h, m):
         m = "0" + m
 
     return h + ":" + m
+
+
+def name_to_initials(name):
+    first, surname = "X", ["X"]
+    if name.find(" ") != -1:
+        first, *surname = name.split(" ")
+    return first[0].upper() + surname[0][0].upper()
 
 
 def print_day(calendar, d):
@@ -151,22 +218,26 @@ def print_week(calendar):
 
 
 def add_app(calendar):
-    print("Enter DAY of an appointment:")
+    print("Enter DAY of an appointment: ", end="")
     day = parse_day(input())
-    if day is None:
+    if day is not None:
+        d = calendar[day]
+    else:
         wrong_input()
         add_app(calendar)
 
+    print(d)
+
     correct = False
     while not correct:
-        print("Appointment NAME (max.30 characters):")
+        print("Appointment NAME (max.20 characters): ", end="")
         name = input()
-        if len(name) <= 30:
+        if len(name) <= 20:
             correct = True
 
     correct = False
     while not correct:
-        print("Start time ('HH:MM'):")
+        print("Start time ('HH:MM'): ", end="")
         start = parse_time(input())
         if start is not None:
             correct = True
@@ -175,7 +246,7 @@ def add_app(calendar):
 
     correct = False
     while not correct:
-        print("Finish time ('HH:MM'):")
+        print("Finish time ('HH:MM'): ", end="")
         finish = parse_time(input())
         if finish is not None:
             correct = True
@@ -190,7 +261,7 @@ def add_app(calendar):
 
 
 def rem_app(calendar):
-    print("Please enter DAY of an appointment:")
+    print("Please enter DAY of an appointment: ", end="")
     day = parse_day(input())
     if day is not None:
         d = calendar[day]
@@ -201,21 +272,43 @@ def rem_app(calendar):
     print(d)
 
     correct = False
+
     while not correct:
-        print("Please enter NUMBER of an appointment to be removed:")
+        print("Please enter NUMBER of an appointment to be removed: ", end="")
         num = input()
         try:
             num = int(num)
         except ValueError:
             wrong_input()
+        else:
+            correct = True
 
-    print("yo")
+    num = int(num) - 1  # list index start at zero not 1
+    if calendar.remove_appointment(day, num) is "error":
+        return
+
+    with open("data.pkl", "wb") as output_file:
+        pickle.dump(calendar, output_file, pickle.HIGHEST_PROTOCOL)
 
 
+def clear_calendar(calendar):
+    cal = Calendar()
+    with open("data.pkl", "wb") as output_file:
+        pickle.dump(cal, output_file, pickle.HIGHEST_PROTOCOL)
+
+    # restarting script
+    print("Calendar will be cleared after restart")
+    sleep(0.5)
+    i = 3
+    while i > 0:
+        print("Restarting...{:}".format(i))
+        sleep(1)
+        i -= 1
+    os.execl(executable, os.path.abspath(__file__), *argv)
 
 
 def wrong_input():
-    print("[*Error*] wrong input format!")
+    print("Error wrong input format!")
 
 
 def welcome_message():
@@ -234,7 +327,9 @@ def help_commands(*args):
     print("| Display DAY schedule, example Monday: '1', 'm', 'mon' or 'Monday' |")
     print("| To ADD appointment: 'a', 'add'                                    |")
     print("| To REMOVE appointment: 'r', 'rem', 'remove', 'del' or 'delete'    |")
+    print("| To CLEAR ALL appointments for week: 'clear'                       |")
     print("|===================================================================|")
+    print()
 
 
 def function_dict(key, calendar):
@@ -249,6 +344,7 @@ def function_dict(key, calendar):
         "remove": rem_app,
         "del": rem_app,
         "delete": rem_app,
+        "clear": clear_calendar,
         "h": help_commands,
         "help": help_commands,
     }
@@ -274,7 +370,7 @@ def main():
     welcome_message()
 
     while True:
-        print("Please enter action:")
+        print(">>> ", end="")
         user_in = input()
         try:
             function_dict(user_in, cal)
